@@ -16,6 +16,9 @@ COPY yarn.lock ./
 # Install dependencies
 RUN yarn install
 
+# Install sharp
+RUN yarn add sharp --ignore-engines
+
 # Copy source code
 COPY . .
 
