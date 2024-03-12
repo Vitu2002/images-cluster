@@ -1,0 +1,390 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Register {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  username   String   @unique
+  password   String
+  created_at DateTime @default(now())
+  hash       String   @unique
+}
+
+model User {
+  id            Int          @id @default(autoincrement())
+  email         String       @unique
+  username      String       @unique
+  password      String
+  display_name  String?
+  gradient      String[]
+  description   String       @default("Eu **<3** Pão de Mel.")
+  avatar        Images?      @relation("IMAGE_USER_AVATAR")
+  banner        Images?      @relation("IMAGE_USER_BANNER")
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @default(now())
+  logged_at     DateTime     @default(now())
+  muted_until   DateTime     @default(now())
+  premium_until DateTime     @default(now())
+  banned        Boolean      @default(false)
+  scan          ScanUser?
+  stats         UserStats?
+  lists         UserLists?
+  roles         UserRoles[]
+  followers     User[]       @relation("FOLLOW")
+  following     User[]       @relation("FOLLOW")
+  anilist       Anilist?
+  myanimelist   MyAnimeList?
+  superfans     SuperFans?
+  discord       Discord?
+}
+
+model UserStats {
+  id            Int            @id @default(autoincrement())
+  user          User           @relation(fields: [id], references: [id], onDelete: Cascade)
+  ratings       Rating[]
+  chapter_votes ChapterVotes[]
+  views         Int            @default(0)
+  coins         Int            @default(0)
+}
+
+model UserLists {
+  id                Int        @id @default(autoincrement())
+  user              User       @relation(fields: [id], references: [id], onDelete: Cascade)
+  favorites         Manga[]    @relation("USER_STATUS_FAVORITE")
+  readings          Manga[]    @relation("USER_STATUS_READING")
+  readeds           Manga[]    @relation("USER_STATUS_READED")
+  to_reads          Manga[]    @relation("USER_STATUS_TO_READ")
+  pauseds           Manga[]    @relation("USER_STATUS_PAUSED")
+  dropeds           Manga[]    @relation("USER_STATUS_DROPED")
+  edited_mangas     Manga[]    @relation("USER_MANGA_EDITED")
+  created_mangas    Manga[]
+  edited_chapters   Chapters[] @relation("CHAPTER_UPDATED")
+  uploaded_chapters Chapters[] @relation("CHAPTER_UPLOADED")
+  views             Chapters[] @relation("CHAPTER_VIEWS")
+}
+
+model Discord {
+  id       String   @id @unique
+  user_id  Int      @unique
+  user     User     @relation(fields: [user_id], references: [id])
+  username String
+  token    String?
+  refresh  String?
+  sync_at  DateTime @default(now())
+}
+
+model Anilist {
+  id       String   @id @unique
+  user_id  Int      @unique
+  user     User     @relation(fields: [user_id], references: [id])
+  username String
+  token    String?
+  refresh  String?
+  sync_at  DateTime @default(now())
+}
+
+model MyAnimeList {
+  id       String   @id @unique
+  user_id  Int      @unique
+  user     User     @relation(fields: [user_id], references: [id])
+  username String
+  token    String?
+  refresh  String?
+  sync_at  DateTime @default(now())
+}
+
+model SuperFans {
+  id       String   @id @unique
+  user_id  Int      @unique
+  user     User     @relation(fields: [user_id], references: [id])
+  username String
+  token    String?
+  refresh  String?
+  sync_at  DateTime @default(now())
+}
+
+enum UserRoles {
+  MEMBER
+  BRONZE
+  SILVER
+  GOLD
+  DIAMOND
+  MODERATOR
+  ADMIN
+  MASTER
+}
+
+// ############################################# //
+// #                                           # //
+// #                   SCANS                   # //
+// #                                           # //
+// ############################################# //
+
+model Scan {
+  id                  Int           @id @default(autoincrement())
+  name                String        @unique
+  icon                Images?       @relation("IMAGE_SCAN_ICON")
+  banner              Images?       @relation("IMAGE_SCAN_BANNER")
+  description         String?
+  discord             String?
+  website             String?
+  donate              String?
+  created_at          DateTime      @default(now())
+  last_upload         DateTime?
+  votes               ScanVotes[]
+  members             ScanMembers[]
+  followers           ScanUser[]
+  invites             ScanInvites[]
+  mangas              Manga[]       @relation("SCAN_CHAPTERS")
+  allowed_mangas      Manga[]       @relation("SCAN_ALLOWED")
+  translated_chapters Chapters[]
+}
+
+model ScanUser {
+  id               Int           @id @default(autoincrement())
+  user             User          @relation(fields: [id], references: [id], onDelete: Cascade)
+  votes            ScanVotes[]
+  following        Scan[]
+  member_of        ScanMembers[]
+  invites_recieved ScanInvites[] @relation("SCAN_INVITE_RECIEVER")
+  invites_sended   ScanInvites[] @relation("SCAN_INVITE_SENDER")
+}
+
+model ScanMembers {
+  id                  Int            @id @default(autoincrement())
+  scan_id             Int
+  scan                Scan           @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+  user_id             Int
+  user                ScanUser       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role                ScanMemberType @default(MEMBER)
+  joined_at           DateTime       @default(now())
+  display_name        String?
+  details             String?
+  translated_chapters Chapters[]
+}
+
+model ScanInvites {
+  id         Int              @id @default(autoincrement())
+  scan_id    Int
+  scan       Scan             @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  user       ScanUser         @relation("SCAN_INVITE_RECIEVER", fields: [user_id], references: [id], onDelete: Cascade)
+  admin_id   Int
+  admin      ScanUser         @relation("SCAN_INVITE_SENDER", fields: [admin_id], references: [id], onDelete: Cascade)
+  invited_at DateTime         @default(now())
+  status     ScanInviteStatus @default(PENDING)
+}
+
+model ScanVotes {
+  id         Int      @id @default(autoincrement())
+  scan_id    Int
+  scan       Scan     @relation(fields: [scan_id], references: [id], onDelete: Cascade)
+  user_id    Int
+  user       ScanUser @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type       Int      @db.SmallInt()
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+enum ScanMemberType {
+  OWNER
+  ADMIN
+  MEMBER
+  EX_MEMBER
+}
+
+enum ScanInviteStatus {
+  PENDING
+  REJECTED
+  ACCEPTED
+}
+
+// ############################################# //
+// #                                           # //
+// #                   MANGAS                  # //
+// #                                           # //
+// ############################################# //
+
+model Manga {
+  id                 Int         @id @default(autoincrement())
+  slug               String
+  title              String
+  title_english      String?
+  title_original     String?
+  title_alternatives String[]
+  searcher           String?     @db.VarChar(12000)
+  description        String      @default("Descrição Indisponível")
+  cover              Images?     @relation("IMAGE_MANGA_COVER")
+  banner             Images?     @relation("IMAGE_MANGA_BANNER")
+  anilist            String?
+  myanimelist        String?
+  superfans          String?
+  scrapper           String?
+  artists            String[]
+  authors            String[]
+  visible            Boolean     @default(true)
+  nsfw               Boolean     @default(false)
+  hentai             Boolean     @default(false)
+  type               MangaTypes
+  status             MangaStatus
+  views              Int         @default(0)
+  ratings            Rating[]
+  genres             Genre[]
+  tags               Tag[]
+  favorite_of        UserLists[] @relation("USER_STATUS_FAVORITE")
+  reading_of         UserLists[] @relation("USER_STATUS_READING")
+  readed_of          UserLists[] @relation("USER_STATUS_READED")
+  to_read_of         UserLists[] @relation("USER_STATUS_TO_READ")
+  paused_of          UserLists[] @relation("USER_STATUS_PAUSED")
+  droped_of          UserLists[] @relation("USER_STATUS_DROPED")
+  edited_by          UserLists[] @relation("USER_MANGA_EDITED")
+  creator_id         Int
+  creator            UserLists   @relation(fields: [creator_id], references: [id])
+  created_at         DateTime    @default(now())
+  updated_at         DateTime    @default(now())
+  released_at        DateTime?
+  finished_at        DateTime?
+  scans              Scan[]      @relation("SCAN_CHAPTERS")
+  allowed_scans      Scan[]      @relation("SCAN_ALLOWED")
+  chapters           Chapters[]
+}
+
+model Rating {
+  id       Int       @id @default(autoincrement())
+  manga_id Int
+  manga    Manga     @relation(fields: [manga_id], references: [id], onDelete: Cascade)
+  user_id  Int
+  user     UserStats @relation(fields: [user_id], references: [id])
+}
+
+model Genre {
+  id     Int     @id @default(autoincrement())
+  slug   String  @unique
+  name   String
+  adult  Boolean @default(false)
+  mangas Manga[]
+}
+
+model Tag {
+  id     Int     @id @default(autoincrement())
+  slug   String  @unique
+  name   String
+  adult  Boolean @default(false)
+  mangas Manga[]
+}
+
+model Chapters {
+  id              Int            @id @default(autoincrement())
+  chapter         Decimal
+  volume          Int            @default(0)
+  title           String?
+  views           Int            @default(0)
+  extra           Boolean        @default(false)
+  manga_entity_id Int
+  manga           Manga          @relation(fields: [manga_entity_id], references: [id], onDelete: Cascade)
+  uploaded_at     DateTime       @default(now())
+  uploader_id     Int
+  uploader        UserLists      @relation("CHAPTER_UPLOADED", fields: [uploader_id], references: [id])
+  updaters        UserLists[]    @relation("CHAPTER_UPDATED")
+  scans           Scan[]
+  scanlators      ScanMembers[]
+  readers         UserLists[]    @relation("CHAPTER_VIEWS")
+  votes           ChapterVotes[]
+  pages           Images[]
+}
+
+model ChapterVotes {
+  id                Int       @id @default(autoincrement())
+  chapter_entity_id Int
+  chapter           Chapters  @relation(fields: [chapter_entity_id], references: [id], onDelete: Cascade)
+  user_entity_id    Int
+  user              UserStats @relation(fields: [user_entity_id], references: [id])
+  vote              VoteTypes
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @default(now()) @updatedAt
+}
+
+enum MangaTypes {
+  MANGA
+  MANHWA
+  MANHUA
+  NOVEL
+  ONESHOT
+  DOUJINSHI
+  OTHER
+}
+
+enum MangaStatus {
+  COMPLETE
+  ONGOING
+  HIATUS
+  ONHOLD
+  PLANNED
+  ARCHIVED
+  CANCELLED
+}
+
+// ############################################# //
+// #                                           # //
+// #                   SHARED                  # //
+// #                                           # //
+// ############################################# //
+
+model Images {
+  id                  Int        @id @default(autoincrement())
+  b2                  String     @unique
+  uri                 String     @default("/yumu/not-found.avif")
+  v                   Int        @default(0)
+  mime                String     @default("image/avif")
+  size                Int        @default(0)
+  width               Int        @default(0)
+  height              Int        @default(0)
+  type                ImageTypes
+  manga_entity_cover  Int?       @unique
+  manga_entity_banner Int?       @unique
+  chapter_entity_page Int?
+  user_entity_avatar  Int?       @unique
+  user_entity_banner  Int?       @unique
+  scan_entity_icon    Int?       @unique
+  scan_entity_banner  Int?       @unique
+  manga_cover         Manga?     @relation("IMAGE_MANGA_COVER", fields: [manga_entity_cover], references: [id])
+  manga_banner        Manga?     @relation("IMAGE_MANGA_BANNER", fields: [manga_entity_banner], references: [id])
+  chapter_page        Chapters?  @relation(fields: [chapter_entity_page], references: [id])
+  user_avatar         User?      @relation("IMAGE_USER_AVATAR", fields: [user_entity_avatar], references: [id])
+  user_banner         User?      @relation("IMAGE_USER_BANNER", fields: [user_entity_banner], references: [id])
+  scan_icon           Scan?      @relation("IMAGE_SCAN_ICON", fields: [scan_entity_icon], references: [id])
+  scan_banner         Scan?      @relation("IMAGE_SCAN_BANNER", fields: [scan_entity_banner], references: [id])
+
+  @@index([id, type, manga_entity_cover])
+  @@index([id, type, manga_entity_banner])
+  @@index([id, type, chapter_entity_page])
+  @@index([id, type, user_entity_avatar])
+  @@index([id, type, user_entity_banner])
+  @@index([id, type, scan_entity_icon])
+  @@index([id, type, scan_entity_banner])
+}
+
+enum ImageTypes {
+  MANGA_COVER
+  MANGA_BANNER
+  CHAPTER_PAGE
+  USER_AVATAR
+  USER_BANNER
+  SCAN_ICON
+  SCAN_BANNER
+}
+
+enum VoteTypes {
+  HEART
+  LIKE
+  DISLIKE
+}
