@@ -6,6 +6,7 @@ import {
     ServiceUnavailableException,
     UnauthorizedException
 } from '@nestjs/common';
+import { PrismaService } from '@shared/prisma.service';
 import { RedisService } from '@shared/redis.service';
 import { StatusService } from '@shared/status.service';
 import { StorageService } from '@shared/storage.service';
@@ -18,6 +19,7 @@ export class ProcessorService {
     private readonly logger = new Logger('Images');
     constructor(
         private readonly redis: RedisService,
+        private readonly prisma: PrismaService,
         private readonly storage: StorageService,
         private readonly status: StatusService
     ) {}
@@ -40,6 +42,25 @@ export class ProcessorService {
         const uploaded = await this.uploadFile(processed.image, processed);
         this.logger.log(`Uploaded ${processed.name} (${processed.size / 1024}KB) | HASH: ${hash}`);
         this.status.processes('uploads');
+        await this.prisma.images.create({
+            data: {
+                b2: uploaded.b2,
+                uri: uploaded.name,
+                size: uploaded.size,
+                width: uploaded.width,
+                height: uploaded.height,
+                mime: uploaded.mimetype,
+                type: auth.type,
+                v: auth.v,
+                manga_entity_cover: auth.manga_entity_cover,
+                manga_entity_banner: auth.manga_entity_banner,
+                chapter_entity_page: auth.chapter_entity_page,
+                user_entity_avatar: auth.user_entity_avatar,
+                user_entity_banner: auth.user_entity_banner,
+                scan_entity_icon: auth.scan_entity_icon,
+                scan_entity_banner: auth.scan_entity_banner
+            }
+        });
         this.status.processes('queue', -1);
         return uploaded;
     }
@@ -104,7 +125,8 @@ export class ProcessorService {
                 height: metadata.height,
                 size: processed.byteLength,
                 quality: data.quality,
-                image: processed
+                image: processed,
+                type: data.type
             };
         } catch (e) {
             this.status.processes('errors');
