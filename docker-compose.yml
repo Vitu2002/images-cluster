@@ -1,0 +1,37 @@
+version: '3.8'
+services:
+  cluster_maria:
+    build: .
+    restart: always
+    ports:
+      - '3001:3000'
+    environment:
+      - NODE_ENV=production
+      - INSTANCE=maria
+
+  cluster_rose:
+    build: .
+    restart: always
+    ports:
+      - '3002:3000'
+    environment:
+      - NODE_ENV=production
+      - INSTANCE=rose
+
+  cluster_sina:
+    build: .
+    restart: always
+    ports:
+      - '3003:3000'
+    environment:
+      - NODE_ENV=production
+      - INSTANCE=sina
+
+  nginx:
+    build: ./nginx
+    ports:
+      - '80:80'
+    depends_on:
+      - cluster_maria
+      - cluster_rose
+      - cluster_sina
