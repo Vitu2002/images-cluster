@@ -25,5 +25,8 @@ COPY . .
 # Compile nest project
 RUN yarn build
 
+# Generate prisma client
+RUN yarn prisma generate
+
 # Start the application
 CMD ["yarn", "start:prod"]
