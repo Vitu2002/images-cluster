@@ -21,6 +21,7 @@ export class StatusService {
 
     async health() {
         return {
+            instance: process.env.INSTANCE || 'DEV',
             cpu: await this.cpu(),
             mem: this.mem(),
             services: this.services(),
